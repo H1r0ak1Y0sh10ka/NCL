@@ -3,7 +3,7 @@
 ## ここにあるディレクトリとスクリプト一覧
 
 <pre>
-.
+NCL
 ├── README.md  
 ├── WRF  
 │      └── ideal  
