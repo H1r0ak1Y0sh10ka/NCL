@@ -22,7 +22,7 @@ begin
 ;;****************************************************************
 ;; These are some parameters that could be useful to have up top
 ;;****************************************************************
-  plotType = "png"                 ; send graphics to PNG file
+  plotType = "eps"                 ; send graphics to PNG file
   tcName   = "PALI"
 
 ;;****************************************************************
@@ -83,8 +83,9 @@ begin
   mpres@mpLimbLineColor             = "Black"
   mpres@mpNationalLineColor         = "Black"
   mpres@mpPerimLineColor            = "Black"
-  mpres@tiMainString                = "Domain & Best track for "+stormYear(ii)+" "+stormName(ii)
- 
+;  mpres@tiMainString                = "Domain & Best track for "+stormYear(ii)+" "+stormName(ii)
+  mpres@tiMainString                = "(a) Domain & "+stormName(ii)+"'s Track"
+
   ;; ...map gridlines
   mpres@mpGridAndLimbOn = True
   mpres@mpGridLatSpacingF = 5
@@ -180,7 +181,7 @@ begin
   mpres@j_parent_start    = j_parent_start
   mpres@e_we              = e_we
   mpres@e_sn              = e_sn
-  
+
   map = wrf_wps_dom (wks,mpres,lnres,txres)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -253,10 +254,10 @@ begin
        flag_genesis = flag_genesis + 1
 
        ; Add text of timestamp 
-       txres@txFontHeightF = 0.015        
-       txres@txFontColor   = "blue"
-       text(flag_text) = gsn_add_text(wks,map,Day+"/"+Hour,stormLon(i)+0.5,stormLat(i)+0.5,txres)
-       flag_text = flag_text + 1
+       ;txres@txFontHeightF = 0.015        
+       ;txres@txFontColor   = "blue"
+       ;text(flag_text) = gsn_add_text(wks,map,Day+"/"+Hour,stormLon(i)+0.5,stormLat(i)+0.5,txres)
+       ;flag_text = flag_text + 1
        
        else if(i.eq.Nmax)then
 
@@ -270,10 +271,10 @@ begin
        delete(mark@gsMarkerSizeF)
 
        ; Add text of timestamp 
-       txres@txFontHeightF = 0.015        
-       txres@txFontColor   = "red"
-       text(flag_text) = gsn_add_text(wks,map,Day+"/"+Hour,stormLon(i)+0.5,stormLat(i)+0.5,txres)
-       flag_text = flag_text + 1
+       ;txres@txFontHeightF = 0.015        
+       ;txres@txFontColor   = "red"
+       ;text(flag_text) = gsn_add_text(wks,map,Day+"/"+Hour,stormLon(i)+0.5,stormLat(i)+0.5,txres)
+       ;flag_text = flag_text + 1
 
        else if(stormHour(i).eq.0)then
 
