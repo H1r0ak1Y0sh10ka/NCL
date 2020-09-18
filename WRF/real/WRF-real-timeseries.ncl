@@ -1,21 +1,21 @@
 ; This file is Analysis and Draw program.
 ; Hiroaki Yoshioka(yoshioka@dpac.kyoto-u.ac.jp)
 ; History:
-; 09/11/2020 - 1st released
-
-; Example of using panels with WRF data
+; 09/11/2020 - 1st released for IBTrACSv3
+; 09/18/2020 - 2nd released for IBTrACSv4 (only use plot type "4")
 
 load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/gsn_code.ncl"
 load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/gsn_csm.ncl"
 load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/contributed.ncl"
 begin
 ;
+;********** Part - Enter Constant, Directory, NAME and so on **********
 
-  scp_ver  = "v10"
+  scp_ver  = "v2"
 
-  init_YYYY = "2016"
+  init_YYYY = 2016
   init_M    = 1
-  init_D    = 7
+  init_D    = 2
   init_H    = 0
   init_plus = "" ; ex. -p01deg
 
@@ -34,15 +34,14 @@ begin
                  ;;;; 3 is the ensemble number's plots by emphasis of each member.
                  ;;;; 4 is best member and worst member at any time with mean and best track.
 
-  ibtracs_dir  = "/Volumes/HDD01/research/analysis/track/ibtracks/"
-  ibtracs_data = "2016005N02187.ibtracs."
-  ibtracs_ver  = "v03r10"
+  ibtracs_dir  = "/Volumes/RAID01/research/DATA/ibtracs/"
+  ibtracs_data = "IBTrACS.ALL.v04r00.nc"
+  ibtracs_ver  = "v04r00"
 
-  ;track_dir    = "~/Desktop/track/"
   track_dir    = "/Volumes/HDD01/research/ncl/wrf/track/"
   track_ver    = "v25"
 
-   case_name   = "PALI"
+  tcName   = "PALI"
 
    if(init_M.lt.10)then
    init_MM   = "0"+init_M
@@ -86,61 +85,96 @@ begin
 ; get ibtracs data
 ;********************
 
-  f        = addfile(ibtracs_dir+ibtracs_data+ibtracs_ver+".nc","r")
+  inFile    = addfile(ibtracs_dir+ibtracs_data,"r")
 
-  time = f->time_wmo
-  ibtracs_spd  = (f->wind_wmo)*0.514444 
-  ibtracs_date = ut_calendar(time, 0)
-  ibtracs_ndate = dimsizes(ibtracs_date(:,0))
+  stormYear = inFile->season
+  stormName = tostring(inFile->name)
 
-print(ibtracs_date)
-exit
+  ii = str_match_ind_ic(stormName,tcName)
 
+  print("DATA NUMBER:"+ii)
+  print("STORM NAME:"+stormName(ii))
+  print("GENESIS YEAR:"+stormYear(ii))
+
+  ;stormPres = short2flt( inFile->wmo_pres(ii,:) )
+  ibtracs_spd  = short2flt( inFile->wmo_wind(ii,:) ) * 0.514444
+  ;ibtracs_date = cd_calendar(inFile->time(ii,:),0)
+
+  time = inFile->time(ii,:)
+  ibtracs_date  = cd_calendar(time, 0)
+  ibtracs_ndate = num(.not.ismissing(ibtracs_date(:,0)))
+
+  diff_M = ibtracs_date(0,1) - init_M
+  diff_D = ibtracs_date(0,2) - init_D
+  diff_H = ibtracs_date(0,3) - init_H
+
+  init_DIFF = (diff_D * 24 + diff_H)
+
+  diff_M = ibtracs_date(ibtracs_ndate-1,1) - init_M
+  diff_D = ibtracs_date(ibtracs_ndate-1,2) - init_D
+  diff_H = ibtracs_date(ibtracs_ndate-1,3) - init_H
+     
+  end_DIFF =  (diff_D * 24 + diff_H)
+
+  if(init_DIFF.lt.0)then
+   ibtracs_startn = tointeger(-init_DIFF/3)
+  else if(init_DIFF.ge.0)then
    ibtracs_startn = 0
-   ibtracs_endn   = 0
- 
-  do in = 0, ibtracs_ndate-1,1
-  
-   if(ibtracs_date(in,0).eq.init_YYYY.and.ibtracs_date(in,1).eq.init_M.and.ibtracs_date(in,2).eq.init_D.and.ibtracs_date(in,3).eq.init_H)then
-   ibtracs_startn = in
-   end if
+  end if
+  end if
 
-   if(ibtracs_date(in,0).eq.init_YYYY.and.ibtracs_date(in,1).eq.init_M.and.ibtracs_date(in,2).eq.(init_D+forecast_day).and.ibtracs_date(in,3).eq.init_H)then
-   ibtracs_endn = in
-   end if
-   
-  end do
+  if(end_DIFF.gt.timestep)then
+   ibtracs_endn =  tointeger((timestep-init_DIFF)/3)
+  else if(end_DIFF.le.timestep)then
+   ibtracs_endn =  ibtracs_ndate
+  end if
+  end if
 
-   if(ibtracs_endn.eq.0)then
-    ibtracs_endn = ibtracs_ndate-1
-   end if
- 
-   if(ibtracs_startn.eq.0.and.(ibtracs_endn-ibtracs_startn+1).lt.forecast_day*4+1)then
-   err = ((forecast_day*4+1)-(ibtracs_endn-ibtracs_startn))
-   start_fcstn =(err-1)*6+ibtracs_startn
-   end_fcstn   =start_fcstn+(ibtracs_endn-ibtracs_startn)*6
-   else
-   start_fcstn =0
-   end_fcstn   =start_fcstn+(ibtracs_endn-ibtracs_startn)*6
-   end if
 
    do in = ibtracs_startn,ibtracs_endn
-   bspd(start_fcstn+(in-ibtracs_startn)*6) = ibtracs_spd(in)   
+
+   if(init_DIFF.lt.0)then
+   bspd(tointeger((in-ibtracs_startn)*3)) = ibtracs_spd(in)
+;   print(in+","+ibtracs_date(in,3)+"h, wind speed:"+ibtracs_spd(in)+",WRF TIME;"+tointeger((in-ibtracs_startn)*3))
+         if(in.eq.ibtracs_startn)then
+         EVA_STA =  tointeger(0)
+         EVA_END =  tointeger((ibtracs_endn-ibtracs_startn)*3)
+         end if
+
+   else if (init_DIFF.ge.0)then
+   bspd(tointeger((in-ibtracs_startn)*3+init_DIFF)) = ibtracs_spd(in)
+;   print(in+","+ibtracs_date(in,3)+"h, wind speed:"+ibtracs_spd(in)+",WRF TIME;"+tointeger((in-ibtracs_startn)*3+init_DIFF))
+   
+         if(in.eq.ibtracs_startn)then
+         EVA_STA =  tointeger(init_DIFF)
+         EVA_END =  tointeger((ibtracs_endn-ibtracs_startn)*3)
+         end if
+  
+   end if 
+   end if
+
    end do 
 
   bspd(0:timestep-1)=linmsg(bspd(0:timestep-1),0)
+
+;print(ibtracs_startn)
+;print(ibtracs_endn)
+;print(bspd)
+;print(EVA_STA)
+;print(EVA_END)
+;exit
 
   do nnn = 0,ninit-1 ; number of initial times
   do ii = 0,mmm-1    ; number of members 
   do ppp = 0,npara-1 ; parameter loop
 
-     trackdata = track_dir+case_name+"_"+init(nnn)+"_"+member(ii)+"-"+para(ppp)+"_"+ track_ver+".csv"
+     trackdata = track_dir+tcName+"_"+init(nnn)+"_"+member(ii)+"-"+para(ppp)+"_"+ track_ver+".csv"
      if(para.eq."dcapedt")then
      delete(trackdata)
-     trackdata = track_dir+case_name+"_"+init(nnn)+"_"+member(ii)+"-cape_"+ track_ver+".csv"
+     trackdata = track_dir+tcName+"_"+init(nnn)+"_"+member(ii)+"-cape_"+ track_ver+".csv"
      else if(para.eq."dspddt")then
      delete(trackdata)
-     trackdata = track_dir+case_name+"_"+init(nnn)+"_"+member(ii)+"-spd_"+ track_ver+".csv"
+     trackdata = track_dir+tcName+"_"+init(nnn)+"_"+member(ii)+"-spd_"+ track_ver+".csv"
      end if
      end if
 
@@ -453,15 +487,16 @@ else if(plot_type.eq.4)then ;***************************************************
 ; CALCULATE RSME & BEST MEMBER
 ;***************************************************** 
   rmse     = new((/mmm/),float)
-  EVA_STA  =  54
-  EVA_END  = 132
+
+  ;EVA_STA = tointeger(ibtracs_startn)
+  ;EVA_END = tointeger(18+24*(7-init_D)); tointeger(ibtracs_endn-1)
 
   do im = 0, mmm-1,1
   rmse(im) = dim_rmsd(bspd(EVA_STA:EVA_END),data(nnn,im,EVA_STA:EVA_END))
   end do
 
   best_membern = minind(rmse)
-  wrst_membern = 10;maxind(rmse)
+  wrst_membern = maxind(rmse)
 
   me_opts@xyLineColor           = "Blue"
   me_opts@xyLineThicknessF      = 5.0
@@ -507,7 +542,7 @@ else if(plot_type.eq.4)then ;***************************************************
 ;---Attach legend to first plot
   ;textres@lgLabels     = (/"Best track","Ensemble mean("+decimalPlaces(dim_rmsd(bspd(start_fcstn:end_fcstn),mean(start_fcstn:end_fcstn)),2,True)+")","Ensemble members","Best member("+member(best_membern)+","+decimalPlaces(rmse(best_membern),2,True)+")","Worst member("+member(wrst_membern)+","+decimalPlaces(rmse(wrst_membern),2,True)+")"/)
   ;lineres@lgLineColors =  (/"red", "black", "lightgray","Blue","green4"/)
-  textres@lgLabels     = (/"Best track","Ensemble mean("+decimalPlaces(dim_rmsd(bspd(start_fcstn:end_fcstn),mean(start_fcstn:end_fcstn)),2,True)+")","Ensemble members","Best member("+member(best_membern)+","+decimalPlaces(rmse(best_membern),2,True)+")"/)
+  textres@lgLabels     = (/"Best track","Ensemble mean("+decimalPlaces(dim_rmsd(bspd(EVA_STA:EVA_END),mean(EVA_STA:EVA_END)),2,True)+")","Ensemble members","Best member("+member(best_membern)+","+decimalPlaces(rmse(best_membern),2,True)+")"/)
   lineres@lgLineColors =  (/"red", "black", "lightgray","Blue"/)
 
   plot_legend = simple_legend(wks01,plots_mean,gres,lineres,textres)
